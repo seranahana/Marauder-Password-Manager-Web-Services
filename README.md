@@ -1,4 +1,4 @@
-# Simple-Password-Manager-Web-Services
+# Simple Password Manager Web Services
 
 Web API for synchronizing entries between multiple Simple Password Manager clients.
 
