@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# CS8963: Класс CallerArgumentExpressionAttribute применен с недопустимым именем параметра.
+dotnet_diagnostic.CS8963.severity = error
