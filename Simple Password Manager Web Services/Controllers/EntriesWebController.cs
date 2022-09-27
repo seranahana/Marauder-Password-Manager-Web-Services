@@ -69,7 +69,7 @@ namespace SimplePM.WebAPI.Controllers
         [ProducesResponseType(typeof(List<Entry>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> RetrieveUpdatelistAsync([FromHeader, Required] string accountID, [FromHeader, Required] string[] idList)
+        public IActionResult RetrieveUpdatelist([FromHeader, Required] string accountID, [FromHeader, Required] string[] idList)
         {
             if (string.IsNullOrWhiteSpace(accountID))
             {
@@ -81,7 +81,7 @@ namespace SimplePM.WebAPI.Controllers
             }
             try
             {
-                List<Entry> checklist = _processor.GetUpdatelistAsync(accountID, idList);
+                List<Entry> checklist = _processor.GetUpdatelist(accountID, idList);
                 return Ok(checklist);
             }
             catch (ArgumentException ex)

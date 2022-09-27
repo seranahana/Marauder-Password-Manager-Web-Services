@@ -32,7 +32,7 @@ namespace SimplePM.WebAPI.Library.Processing
             return checklist;
         }
 
-        public List<Entry> GetUpdatelistAsync(string accountID, string[] idList, [CallerArgumentExpression("accountID")] string paramName = null)
+        public List<Entry> GetUpdatelist(string accountID, string[] idList, [CallerArgumentExpression("accountID")] string paramName = null)
         {
             List<Entry> updatelist = new();
             foreach (string id in idList)
