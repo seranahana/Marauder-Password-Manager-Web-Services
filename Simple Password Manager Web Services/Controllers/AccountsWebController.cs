@@ -35,7 +35,7 @@ namespace SimplePM.WebAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(encryptedLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("username"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
             if (!ModelState.IsValid)
             {
@@ -48,12 +48,12 @@ namespace SimplePM.WebAPI.Controllers
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -67,13 +67,11 @@ namespace SimplePM.WebAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(encryptedLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage($"{nameof(UserData)} model"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
             if (string.IsNullOrWhiteSpace(encryptedPassword))
             {
-                var (Key, Value) = DefaultHeaders.AuthorizationHeader;
-                HttpContext.Response.Headers.Add(Key, Value);
-                return Unauthorized(DefaultMessages.GetUnauthorizedRequiredMessage("account password"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.AccountPassword));
             }
             if (!ModelState.IsValid)
             {
@@ -91,22 +89,22 @@ namespace SimplePM.WebAPI.Controllers
                     case nameof(encryptedLogin):
                         return NotFound();
                     case nameof(encryptedPassword):
-                        var (Key, Value) = DefaultHeaders.AuthorizationHeader;
+                        var (Key, Value) = DefaultHeadersProvider.AuthorizationHeader;
                         HttpContext.Response.Headers.Add(Key, Value);
-                        return Unauthorized(DefaultMessages.GetUnauthorizedIncorrectMessage("password"));
+                        return Unauthorized(DefaultMessagesProvider.GetUnauthorizedIncorrectMessage(Params.AccountPassword));
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -118,7 +116,7 @@ namespace SimplePM.WebAPI.Controllers
         {
             if (encryptedAccountData is null)
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage($"{nameof(UserData)} model"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.UserDataModel));
             }
             if (!ModelState.IsValid)
             {
@@ -126,9 +124,9 @@ namespace SimplePM.WebAPI.Controllers
             }
             try
             {
-                string newUserID = await _processor.RegisterAsync(encryptedAccountData, Program.PrivateKey);
-                _logger.Information("User {NewUserID} created", newUserID);
-                return Created("api/v1/accounts", newUserID);
+                UserData newAccountData = await _processor.RegisterAsync(encryptedAccountData, Program.PrivateKey);
+                _logger.Information("User {NewUserID} created", newAccountData.ID);
+                return Created("api/v1/accounts", newAccountData);
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
             {
@@ -139,17 +137,17 @@ namespace SimplePM.WebAPI.Controllers
                 else
                 {
                     _logger.Fatal(ex, ex.GetType().ToString());
-                    return Problem(DefaultMessages.InternalServerError);
+                    return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -159,24 +157,21 @@ namespace SimplePM.WebAPI.Controllers
         [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> UpdateAccountDataAsync([FromHeader] string encryptedNewLogin, 
-            [FromHeader] string encryptedNewPassword, 
+        public async Task<IActionResult> ChangeAccountPasswordAsync([FromHeader, Required] string encryptedNewPassword, 
             [FromHeader, Required] string encryptedCurrentLogin,
             [FromHeader, Required] string encryptedCurrentPassword)
         {
             if (string.IsNullOrWhiteSpace(encryptedCurrentLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("current login"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
-            if (string.IsNullOrWhiteSpace(encryptedNewLogin) && string.IsNullOrWhiteSpace(encryptedNewPassword))
+            if (string.IsNullOrWhiteSpace(encryptedNewPassword))
             {
-                return BadRequest("No valid data have been recieved. Please verify your entry and try again.");
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.NewAccountPassword));
             }
             if (string.IsNullOrWhiteSpace(encryptedCurrentPassword))
             {
-                var (Key, Value) = DefaultHeaders.AuthorizationHeader;
-                HttpContext.Response.Headers.Add(Key, Value);
-                return Unauthorized(DefaultMessages.GetUnauthorizedRequiredMessage("account password"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.AccountPassword));
             }
             if (!ModelState.IsValid)
             {
@@ -184,15 +179,7 @@ namespace SimplePM.WebAPI.Controllers
             }
             try
             {
-
-                if (!string.IsNullOrWhiteSpace(encryptedNewLogin))
-                {
-                    await _processor.UpdateAccountLoginAsync(encryptedCurrentLogin, encryptedNewLogin, encryptedCurrentPassword, Program.PrivateKey);
-                }
-                if (!string.IsNullOrWhiteSpace(encryptedNewPassword))
-                {
-                    await _processor.UpdateAccountPasswordAsync(encryptedCurrentLogin, encryptedNewPassword, encryptedCurrentPassword, Program.PrivateKey);
-                }
+                await _processor.UpdateAccountPasswordAsync(encryptedCurrentLogin, encryptedNewPassword, encryptedCurrentPassword, Program.PrivateKey);
                 return new NoContentResult();
             }
             catch (ArgumentException ex)
@@ -202,34 +189,22 @@ namespace SimplePM.WebAPI.Controllers
                     case nameof(encryptedCurrentLogin):
                         return NotFound();
                     case nameof(encryptedCurrentPassword):
-                        var (Key, Value) = DefaultHeaders.AuthorizationHeader;
+                        var (Key, Value) = DefaultHeadersProvider.AuthorizationHeader;
                         HttpContext.Response.Headers.Add(Key, Value);
-                        return Unauthorized(DefaultMessages.GetUnauthorizedIncorrectMessage("password"));
+                        return Unauthorized(DefaultMessagesProvider.GetUnauthorizedIncorrectMessage(Params.AccountPassword));
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
-                }
-            }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
-            {
-                if (ex.InnerException.Message.Contains("UNIQUE constraint failed") && ex.InnerException.Message.Contains("login"))
-                {
-                    return BadRequest("Username already occupied. Please enter a different user name.");
-                }
-                else
-                {
-                    _logger.Fatal(ex, ex.GetType().ToString());
-                    return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -243,13 +218,11 @@ namespace SimplePM.WebAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(encryptedLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("username"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
             if (string.IsNullOrWhiteSpace(encryptedPassword))
             {
-                var authorizationHeader = DefaultHeaders.AuthorizationHeader;
-                HttpContext.Response.Headers.Add(authorizationHeader.Key, authorizationHeader.Value);
-                return Unauthorized(DefaultMessages.GetUnauthorizedRequiredMessage("account password"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.AccountPassword));
             }
             if (!ModelState.IsValid)
             {
@@ -267,22 +240,22 @@ namespace SimplePM.WebAPI.Controllers
                     case nameof(encryptedLogin):
                         return NotFound();
                     case nameof(encryptedPassword):
-                        var (Key, Value) = DefaultHeaders.AuthorizationHeader;
+                        var (Key, Value) = DefaultHeadersProvider.AuthorizationHeader;
                         HttpContext.Response.Headers.Add(Key, Value);
-                        return Unauthorized(DefaultMessages.GetUnauthorizedIncorrectMessage("password"));
+                        return Unauthorized(DefaultMessagesProvider.GetUnauthorizedIncorrectMessage(Params.AccountPassword));
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -298,7 +271,7 @@ namespace SimplePM.WebAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(encryptedLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("login"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
             if (!ModelState.IsValid)
             {
@@ -317,13 +290,13 @@ namespace SimplePM.WebAPI.Controllers
                         return NotFound();
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -333,23 +306,21 @@ namespace SimplePM.WebAPI.Controllers
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> SetMasterPasswordAsync([FromHeader, Required] string encryptedCurrentLogin,
-            [FromHeader, Required] string encryptedOperationCode,
+        public async Task<IActionResult> SetNewMasterPasswordAsync([FromHeader, Required] string encryptedCurrentLogin,
+            [FromHeader, Required] string encryptedCurrentMasterPassOrOperationCode,
             [FromHeader, Required] string encryptedNewMasterPass)
         {
             if (string.IsNullOrWhiteSpace(encryptedCurrentLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("login"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
             if (string.IsNullOrWhiteSpace(encryptedNewMasterPass))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("new master password"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.NewMasterPassword));
             }
-            if (string.IsNullOrWhiteSpace(encryptedOperationCode))
+            if (string.IsNullOrWhiteSpace(encryptedCurrentMasterPassOrOperationCode))
             {
-                var (Key, Value) = DefaultHeaders.AuthorizationHeader;
-                HttpContext.Response.Headers.Add(Key, Value);
-                return Unauthorized(DefaultMessages.GetUnauthorizedRequiredMessage("operation code"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.MasterPasswordOrOperationCode));
             }
             if (!ModelState.IsValid)
             {
@@ -357,7 +328,7 @@ namespace SimplePM.WebAPI.Controllers
             }
             try
             {
-                UserData newMasterPassData = await _processor.SetMasterPasswordAsync(encryptedCurrentLogin, encryptedOperationCode, encryptedNewMasterPass, Program.PrivateKey);
+                UserData newMasterPassData = await _processor.SetNewMasterPasswordAsync(encryptedCurrentLogin, encryptedCurrentMasterPassOrOperationCode, encryptedNewMasterPass, Program.PrivateKey);
                 return Created("api/v1/accounts/master", newMasterPassData);
             }
             catch (ArgumentException ex)
@@ -366,25 +337,26 @@ namespace SimplePM.WebAPI.Controllers
                 {
                     case nameof(encryptedCurrentLogin):
                         return NotFound();
-                    case nameof(encryptedOperationCode):
-                        var (Key, Value) = DefaultHeaders.AuthorizationHeader;
+                    case nameof(encryptedCurrentMasterPassOrOperationCode):
+                        var (Key, Value) = DefaultHeadersProvider.AuthorizationHeader;
                         HttpContext.Response.Headers.Add(Key, Value);
-                        return Unauthorized(DefaultMessages.GetUnauthorizedIncorrectMessage("operation code"));
+                        return Unauthorized(DefaultMessagesProvider.GetUnauthorizedIncorrectMessage(Params.MasterPasswordOrOperationCode));
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
+
 
         [Route("master/reset")]
         [HttpDelete]
@@ -399,17 +371,15 @@ namespace SimplePM.WebAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(encryptedLogin))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("username"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.Username));
             }
             if (string.IsNullOrWhiteSpace(rsaPublicKey))
             {
-                return BadRequest(DefaultMessages.GetCorruptedOrMissingMessage("RSA public key"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.RsaPublicKey));
             }
             if (string.IsNullOrWhiteSpace(encryptedPassword))
             {
-                var (Key, Value) = DefaultHeaders.AuthorizationHeader;
-                HttpContext.Response.Headers.Add(Key, Value);
-                return Unauthorized(DefaultMessages.GetUnauthorizedRequiredMessage("account password"));
+                return BadRequest(DefaultMessagesProvider.GetCorruptedOrMissingMessage(Params.AccountPassword));
             }
             if (!ModelState.IsValid)
             {
@@ -427,22 +397,22 @@ namespace SimplePM.WebAPI.Controllers
                     case nameof(encryptedLogin):
                         return NotFound();
                     case nameof(encryptedPassword):
-                        var (Key, Value) = DefaultHeaders.AuthorizationHeader;
+                        var (Key, Value) = DefaultHeadersProvider.AuthorizationHeader;
                         HttpContext.Response.Headers.Add(Key, Value);
-                        return Unauthorized(DefaultMessages.GetUnauthorizedIncorrectMessage("password"));
+                        return Unauthorized(DefaultMessagesProvider.GetUnauthorizedIncorrectMessage(Params.AccountPassword));
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex) when (ex is FormatException || ex is System.Security.Cryptography.CryptographicException)
             {
-                return BadRequest(DefaultMessages.EncryptionRequired);
+                return BadRequest(DefaultMessagesProvider.EncryptionRequired);
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 

@@ -54,13 +54,13 @@ namespace SimplePM.WebAPI.Controllers
                         return NotFound();
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -92,13 +92,13 @@ namespace SimplePM.WebAPI.Controllers
                         return BadRequest(nameof(accountID));
                     default:
                         _logger.Fatal(ex, ex.GetType().ToString());
-                        return Problem(DefaultMessages.InternalServerError);
+                        return Problem(DefaultMessagesProvider.InternalServerError);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
@@ -137,7 +137,7 @@ namespace SimplePM.WebAPI.Controllers
             catch (Exception ex)
             {
                 _logger.Fatal(ex, ex.GetType().ToString());
-                return Problem(DefaultMessages.InternalServerError);
+                return Problem(DefaultMessagesProvider.InternalServerError);
             }
         }
 
