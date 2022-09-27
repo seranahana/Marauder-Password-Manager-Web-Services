@@ -110,30 +110,11 @@ namespace SimplePM.WebAPI.Library.Models
         }
 
         /// <summary>
-        /// Computes hash codes for all not null password fields in UserData instanse and updates them with resulting values. 
-        /// If field containing salt is null or empty, a new salt will be generated.
-        /// </summary>
-        /// 
-        /// <exception cref="EncoderFallbackException">A fallback occurred (for more information, see Character Encoding in .NET) 
-        ///     -and- System.Text.Encoding.EncoderFallback is set to System.Text.EncoderExceptionFallback.</exception>
-        public void HashPasswords()
-        {
-            if (!string.IsNullOrEmpty(Password))
-            {
-                HashAccountPassword();
-            }
-            if (!string.IsNullOrEmpty(MasterPassword))
-            {
-                HashMasterPassword();
-            }
-        }
-
-        /// <summary>
         /// Computes hash codes only for Password field in UserData instanse and updates it with resulting value. 
         /// If Salt field is null or empty, a new salt will be generated.
         /// </summary>
         /// 
-        /// <exception cref="EncoderFallbackException">A fallback occurred (for more information, see Character Encoding in .NET) 
+        /// <exception cref="System.Text.EncoderFallbackException">A fallback occurred (for more information, see Character Encoding in .NET) 
         ///     -and- System.Text.Encoding.EncoderFallback is set to System.Text.EncoderExceptionFallback.</exception>
         public void HashAccountPassword()
         {
@@ -156,7 +137,7 @@ namespace SimplePM.WebAPI.Library.Models
         /// If MasterSalt field is null or empty, a new salt will be generated.
         /// </summary>
         /// 
-        /// <exception cref="EncoderFallbackException">A fallback occurred (for more information, see Character Encoding in .NET) 
+        /// <exception cref="System.Text.EncoderFallbackException">A fallback occurred (for more information, see Character Encoding in .NET) 
         ///     -and- System.Text.Encoding.EncoderFallback is set to System.Text.EncoderExceptionFallback.</exception>
         public void HashMasterPassword()
         {
