@@ -56,47 +56,18 @@ namespace SimplePM.WebAPI.Library.Processing
             }
         }
 
-        public async Task<string> RegisterAsync(UserData encryptedAccountData, string rsaPrivateKey)
+        public async Task<UserData> RegisterAsync(UserData encryptedAccountData, string rsaPrivateKey)
         {
             string newUserID = Guid.NewGuid().ToString("N");
             encryptedAccountData.DecryptPrivateData(rsaPrivateKey);
 
             // Actually no longer encrypted
             encryptedAccountData.ID = newUserID;
-            await _repository.CreateAsync(encryptedAccountData);
-            return newUserID;
-        }
-
-        public async Task UpdateAccountLoginAsync(string encryptedNewLogin, 
-            string encryptedCurrentLogin,
-            string encryptedCurrentPassword, 
-            string rsaPrivateKey,
-            [CallerArgumentExpression("encryptedCurrentLogin")] string loginParamName = null,
-            [CallerArgumentExpression("encryptedCurrentPassword")] string passwordParamName = null)
-        {
-            string newLogin = CryptographyProvider.RSA.Decrypt(encryptedNewLogin, rsaPrivateKey);
-            string currentLogin = CryptographyProvider.RSA.Decrypt(encryptedCurrentLogin, rsaPrivateKey);
-            string currentPassword = CryptographyProvider.RSA.Decrypt(encryptedCurrentPassword, rsaPrivateKey);
-
-            var existing = await _repository.RetrieveAsync(currentLogin);
-            if (existing is null)
-            {
-                throw new ArgumentException("", loginParamName);
-            }
-
-            string saltedAndHashedCurrentPassword = CryptographyProvider.SHA256.SaltAndHashString(currentPassword, existing.Salt);
-            if (existing.Password == saltedAndHashedCurrentPassword)
-            {
-                existing.Login = newLogin;
-                if (await _repository.UpdateAsync(existing.ID, existing) is null)
-                {
-                    throw new IntermediateStorageException();
-                }
-            }
-            else
-            {
-                throw new ArgumentException("", passwordParamName);
-            }
+            encryptedAccountData.HashAccountPassword();
+            encryptedAccountData.HashMasterPassword();
+            UserData newAccountData = await _repository.CreateAsync(encryptedAccountData);
+            
+            return new UserData(newAccountData.ID, newAccountData.MasterPassword, newAccountData.MasterSalt);
         }
 
         public async Task UpdateAccountPasswordAsync(string encryptedNewPassword, 
@@ -179,15 +150,15 @@ namespace SimplePM.WebAPI.Library.Processing
             return masterPassData;
         }
 
-        public async Task<UserData> SetMasterPasswordAsync(string encryptedCurrentLogin,
-            string encryptedOperationCode,
+        public async Task<UserData> SetNewMasterPasswordAsync(string encryptedLogin,
+            string encryptedCurrentMasterPassOrOperationCode,
             string encryptedNewMasterPass,
             string rsaPrivateKey,
-            [CallerArgumentExpression("encryptedCurrentLogin")] string loginParamName = null,
-            [CallerArgumentExpression("encryptedOperationCode")] string masterPasswordParamName = null)
+            [CallerArgumentExpression("encryptedLogin")] string loginParamName = null,
+            [CallerArgumentExpression("encryptedCurrentMasterPassOrOperationCode")] string masterPasswordParamName = null)
         {
-            string currentLogin = CryptographyProvider.RSA.Decrypt(encryptedCurrentLogin, rsaPrivateKey);
-            string operationCode = CryptographyProvider.RSA.Decrypt(encryptedOperationCode, rsaPrivateKey);
+            string currentLogin = CryptographyProvider.RSA.Decrypt(encryptedLogin, rsaPrivateKey);
+            string currentMasterPass = CryptographyProvider.RSA.Decrypt(encryptedCurrentMasterPassOrOperationCode, rsaPrivateKey);
             string newMasterPass = CryptographyProvider.RSA.Decrypt(encryptedNewMasterPass, rsaPrivateKey);
 
             var existing = await _repository.RetrieveAsync(currentLogin);
@@ -196,7 +167,7 @@ namespace SimplePM.WebAPI.Library.Processing
                 throw new ArgumentException("", loginParamName);
             }
 
-            if (existing.MasterPassword == operationCode)
+            if (existing.MasterPassword == currentMasterPass)
             {
                 existing.MasterPassword = newMasterPass;
                 existing.MasterSalt = null;
